@@ -1,0 +1,10 @@
+{
+  "name": "rate-limiter-learning",
+  "version": "1.0.0",
+  "description": "Simple Node.js examples for learning rate limiting algorithms",
+  "main": "rate-limiter-service.js",
+  "scripts": {
+    "start": "node rate-limiter-service.js",
+    "client": "node client-requests.js"
+  }
+}

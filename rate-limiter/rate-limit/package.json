@@ -1,0 +1,10 @@
+{
+  "name": "rate-limit-learning",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Readable Node.js project for learning rate-limiting strategies",
+  "scripts": {
+    "start": "node rate-limiter-service.js",
+    "client": "node client-requests.js"
+  }
+}
