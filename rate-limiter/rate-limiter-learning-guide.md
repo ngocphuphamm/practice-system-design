@@ -38,6 +38,35 @@ Good for:
 - early MVPs
 - simple dashboards
 
+Downside: 
+
+Khi bạn đặt giới hạn là **100 request/phút**, hệ thống sẽ chia thời gian thành các "khung" (window) cố định 1 phút:
+
+* **Khung 1:** 12:00:00 - 12:00:59
+* **Khung 2:** 12:01:00 - 12:01:59
+
+Bộ đếm chỉ quan tâm xem **trong mỗi khung cố định đó** user đã dùng bao nhiêu request, chứ **không quan tâm các request đó nằm ở khoảng thời gian nào trong khung**.
+
+#### kịch bản diễn ra:
+
+1. **At 12:00:59** (giây cuối cùng của Khung 1): User gửi dồn dập **100 request**.
+* *Hệ thống kiểm tra:* Khung 1 mới có 100 request $\rightarrow$ Hợp lệ, cho qua!
+
+
+2. **At 12:01:00** (giây đầu tiên của Khung 2, chỉ cách 1 giây trước đó): User lại gửi tiếp **100 request**.
+* *Hệ thống kiểm tra:* Sang Khung 2 rồi, bộ đếm vừa reset về 0. Khung 2 mới có 100 request $\rightarrow$ Vẫn hợp lệ, cho qua!
+
+
+
+---
+
+### Kết quả (Hậu quả):
+
+* Về mặt **lý thuyết của hệ thống**: Ở Khung 1 user gửi 100 request, Khung 2 user gửi 100 request $\rightarrow$ Không vi phạm quy tắc "100 request/phút".
+* Về mặt **thực tế (độ tải server)**: Chỉ trong đúng **2 giây** (từ 12:00:59 đến 12:01:00), user này đã dội tới **200 request** vào server, **gấp đôi** lưu lượng tối đa mà bạn muốn cho phép trong vòng 1 phút!
+
+> **Tóm lại:** "Boundary effects" xảy ra ở giao điểm/ranh giới giữa 2 khung thời gian cố định. Nó khiến người dùng có thể gian lận (hoặc vô tình) tạo ra một đợt bùng nổ traffic (burst) gấp đôi giới hạn trong một khoảng thời gian cực ngắn.
+
 ### Sliding Window Log
 Use when:
 - accuracy matters more than memory usage

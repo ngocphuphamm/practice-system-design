@@ -1,0 +1,26 @@
+'use strict';
+
+module.exports = function handleSlidingWindowLog(req, res, deps) {
+  const { stores, strategies, getClientKey } = deps;
+  const algorithm = 'slidingWindowLog';
+  const key = getClientKey(req);
+  const now = Date.now();
+  const strategy = strategies[algorithm];
+  const state = stores.get(`${algorithm}:${key}`);
+  const result = strategy.allow(state, now);
+
+  stores.set(`${algorithm}:${key}`, result.state);
+
+  const response = {
+    algorithm,
+    client: key,
+    allowed: result.allowed,
+    remaining: result.remaining,
+    description: strategy.description,
+    limit: strategy.config.limit,
+    timestamp: now
+  };
+
+  res.writeHead(result.allowed ? 200 : 429, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(response));
+};

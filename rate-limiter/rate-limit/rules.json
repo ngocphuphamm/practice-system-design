@@ -1,0 +1,39 @@
+[
+  {
+    "id": "per-user-default",
+    "type": "per-user",
+    "description": "Default per-user limit",
+    "algorithm": "fixedWindow",
+    "config": { "limit": 1000, "windowMs": 60 * 60 * 1000 }
+  },
+  {
+    "id": "per-ip-default",
+    "type": "per-ip",
+    "description": "Default per-IP short limit",
+    "algorithm": "fixedWindow",
+    "config": { "limit": 100, "windowMs": 60 * 1000 }
+  },
+  {
+    "id": "global-capacity",
+    "type": "global",
+    "description": "Global capacity for the whole API",
+    "algorithm": "tokenBucket",
+    "config": { "limit": 50000, "windowMs": 1000 }
+  },
+  {
+    "id": "search-endpoint",
+    "type": "endpoint",
+    "endpoint": "/search",
+    "description": "Endpoint-specific limit for search (per-user if available)",
+    "algorithm": "fixedWindow",
+    "config": { "limit": 10, "windowMs": 60 * 1000 }
+  },
+  {
+    "id": "profile-update",
+    "type": "endpoint",
+    "endpoint": "/profile/update",
+    "description": "Higher limit for profile updates",
+    "algorithm": "fixedWindow",
+    "config": { "limit": 100, "windowMs": 60 * 1000 }
+  }
+]
