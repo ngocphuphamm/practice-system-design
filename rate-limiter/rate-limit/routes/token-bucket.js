@@ -1,15 +1,16 @@
 'use strict';
 
-module.exports = function handleTokenBucket(req, res, deps) {
+module.exports = async function handleTokenBucket(req, res, deps) {
   const { stores, strategies, getClientKey } = deps;
   const algorithm = 'tokenBucket';
   const key = getClientKey(req);
   const now = Date.now();
   const strategy = strategies[algorithm];
-  const state = stores.get(`${algorithm}:${key}`);
+  const storeKey = `${algorithm}:${key}`;
+  const state = await stores.get(storeKey);
   const result = strategy.allow(state, now);
-
-  stores.set(`${algorithm}:${key}`, result.state);
+  console.log(result.state);
+  await stores.set(storeKey, result.state);
 
   const response = {
     algorithm,

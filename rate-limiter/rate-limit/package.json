@@ -4,7 +4,10 @@
   "private": true,
   "description": "Readable Node.js project for learning rate-limiting strategies",
   "scripts": {
-    "start": "node rate-limiter-service.js",
+    "start": "node --watch rate-limiter-service.js",
     "client": "node client-requests.js"
+  },
+  "dependencies": {
+    "redis": "^4.7.0"
   }
 }

@@ -70,14 +70,14 @@ module.exports = async function handleCheck(req, res, deps) {
           else if (rule.type === 'endpoint') scopeKey = clientKey || ip || 'anonymous';
 
           const storeKey = `${algorithm}:rule:${rule.id}:${scopeKey}`;
-          const state = stores.get(storeKey);
+          const state = await stores.get(storeKey);
 
           const StrategyClass = strategy.constructor;
           const tempStrategy = new StrategyClass();
           if (rule.config) tempStrategy.config = Object.assign({}, tempStrategy.config, rule.config);
 
           const result = tempStrategy.allow(state, now);
-          stores.set(storeKey, result.state);
+          await stores.set(storeKey, result.state);
 
           results.push(Object.assign({ ruleId: rule.id, type: rule.type }, result));
           if (!result.allowed) overallAllowed = false;

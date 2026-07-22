@@ -1,15 +1,16 @@
 'use strict';
 
-module.exports = function handleSlidingWindowCounter(req, res, deps) {
+module.exports = async function handleSlidingWindowCounter(req, res, deps) {
   const { stores, strategies, getClientKey } = deps;
   const algorithm = 'slidingWindowCounter';
   const key = getClientKey(req);
   const now = Date.now();
   const strategy = strategies[algorithm];
-  const state = stores.get(`${algorithm}:${key}`);
+  const storeKey = `${algorithm}:${key}`;
+  const state = await stores.get(storeKey);
   const result = strategy.allow(state, now);
 
-  stores.set(`${algorithm}:${key}`, result.state);
+  await stores.set(storeKey, result.state);
 
   const response = {
     algorithm,

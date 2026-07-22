@@ -1,7 +1,8 @@
 'use strict';
 
 const http = require('http');
-const path = require('path');
+const { createClient } = require('redis');
+const RedisStore = require('./redis-store');
 
 const PORT = process.env.PORT || 3000;
 
@@ -26,13 +27,17 @@ const strategies = {
   tokenBucket: new TokenBucketStrategy()
 };
 
-const stores = new Map();
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
+});
+redisClient.on('error', error => console.error('Redis client error:', error.message));
+const stores = new RedisStore(redisClient);
 
 function getClientKey(req) {
   return req.headers['x-client-id'] || req.headers['x-user-id'] || req.socket.remoteAddress || 'anonymous';
 }
 
-function server(req, res) {
+async function server(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathName = url.pathname;
 
@@ -45,7 +50,13 @@ function server(req, res) {
   const routeHandler = routes[pathName];
   if (routeHandler) {
     // delegate to route handler, passing dependencies (including strategies)
-    routeHandler(req, res, { stores, strategies, getClientKey });
+   
+    try {
+      await routeHandler(req, res, { stores, strategies, getClientKey });
+    } catch (error) {
+      res.writeHead(500, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
     return;
   }
 
@@ -55,12 +66,18 @@ function server(req, res) {
 
 
 const app = http.createServer(server);
-app.listen(PORT, () => {
-  console.log(`Rate limiter service listening on http://127.0.0.1:${PORT}`);
+redisClient.connect().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Rate limiter service listening on http://127.0.0.1:${PORT}`);
+    console.log(`Redis state store connected at ${process.env.REDIS_URL || 'redis://127.0.0.1:6379'}`);
+  });
   console.log('Try:');
   console.log(`  - http://127.0.0.1:${PORT}/fixed-window`);
   console.log(`  - http://127.0.0.1:${PORT}/sliding-window-log`);
   console.log(`  - http://127.0.0.1:${PORT}/sliding-window-counter`);
   console.log(`  - http://127.0.0.1:${PORT}/token-bucket`);
   console.log(`  - http://127.0.0.1:${PORT}/check  (POST JSON { clientId, ip, endpoint } or GET params)`);
+}).catch(error => {
+  console.error('Could not connect to Redis:', error.message);
+  process.exitCode = 1;
 });
