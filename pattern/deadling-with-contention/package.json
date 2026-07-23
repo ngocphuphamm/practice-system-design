@@ -1,0 +1,17 @@
+{
+  "name": "contention-cms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Content management optimistic locking example",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "mysql2": "^3.14.1"
+  }
+}
