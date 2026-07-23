@@ -82,6 +82,10 @@ Good for:
 - billing systems
 - audit-friendly enforcement
 
+Downside: 
+- Memory 
+
+
 ### Sliding Window Counter
 Use when:
 - you want a balance between accuracy and memory
@@ -94,6 +98,18 @@ Idea:
 Good for:
 - high-traffic APIs
 - balancing memory and accuracy
+
+Ví dụ cách tính:
+
+Bây giờ là 1:15 (tức là tiếng hiện tại đã trôi qua $25\%$ thời gian, đồng nghĩa với việc khoảng thời gian 60 phút gần nhất sẽ dính $75\%$ thời gian của tiếng trước).
+
+Tiếng trước (12h - 1h): Khách uống 100 ly.
+Tiếng này (1h - 2h): Khách đã uống 10 ly.
+Khi khách đòi uống ly tiếp theo lúc 1:15, bạn làm phép tính nhẩm nhanh:
+
+$$\text{Số ly ước tính} = (100 \text{ ly tiếng trước} \times 75\%) + 10 \text{ ly tiếng này} = 75 + 10 = 85 \text{ ly}$$
+
+So sánh: $85 < 100 \implies$ "Cho uống tiếp!"
 
 ### Token Bucket
 Use when:
@@ -111,6 +127,10 @@ Good for:
 - search services
 - bursty traffic patterns
 
+# REDIS 
+ A typical Redis instance can handle around 100,000-200,000 operations per second depending on the operation complexity. Each one of our rate limit checks requires multiple Redis operations, at minimum an HMGET to fetch state and an HSET to update it. So our single Redis instance can realistically handle maybe 50,000-100,000 rate limit checks per second before becoming the bottleneck.
+
+ With 10 Redis shards, each handling ~100k operations/second, we should be able to handle our 1M request/second target.
 ## 4. Node.js files in this folder
 
 - rate-limiter-service.js: a small HTTP service that demonstrates all four algorithms

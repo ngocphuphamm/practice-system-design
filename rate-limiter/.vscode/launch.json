@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug rate limiter service",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/rate-limit/rate-limiter-service.js",
+      "cwd": "${workspaceFolder}/rate-limit",
+      "env": {
+        "PORT": "3000"
+      },
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

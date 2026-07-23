@@ -37,10 +37,10 @@ async function runScenario(label, path) {
 
 (async () => {
   try {
-    await runScenario('Fixed Window Counter', '/fixed-window');
+    // await runScenario('Fixed Window Counter', '/fixed-window');
     await runScenario('Sliding Window Log', '/sliding-window-log');
-    await runScenario('Sliding Window Counter', '/sliding-window-counter');
-    await runScenario('Token Bucket', '/token-bucket');
+    // await runScenario('Sliding Window Counter', '/sliding-window-counter');
+    // await runScenario('Token Bucket', '/token-bucket');
   } catch (error) {
     console.error('Client error:', error.message);
   }
