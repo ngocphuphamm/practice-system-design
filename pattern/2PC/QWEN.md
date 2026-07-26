@@ -61,6 +61,36 @@ The system consists of three services that work together:
 - Idempotent operations to allow retries
 - Graceful fallbacks in case of participant failures
 
+#### Inventory Service Implementation Details
+The inventory service implements a complete 2PC pattern with the following enhancements:
+- Database transactions using TypeORM QueryRunner for atomic operations
+- Pessimistic locking using SELECT ... FOR UPDATE to prevent race conditions
+- Stock availability checking before reservation
+- Inventory reservation and release mechanisms
+- Proper transaction rollback on failure
+
+#### Phase 1: Prepare
+1. Order Service receives order request
+2. Generates global transaction ID (G-TID)
+3. Creates initial order record with PENDING status
+4. Sends Prepare requests to Payment and Inventory services in parallel
+5. Waits for responses from all participants
+
+#### Phase 2: Decision
+1. IF ALL participants return SUCCESS:
+   - Send Commit requests to Payment and Inventory services in parallel
+   - Update order status to PAID
+   - Return success response
+2. ELSE (any participant fails):
+   - Send Rollback requests to all participants in parallel
+   - Update order status to FAILED
+   - Return failure response
+
+#### Error Handling
+- Timeout handling for participant calls
+- Idempotent operations to allow retries
+- Graceful fallbacks in case of participant failures
+
 ## Building and Running
 
 ### Prerequisites
@@ -87,7 +117,13 @@ CREATE DATABASE db_inventory;
 CREATE DATABASE db_order;
 ```
 
-4. Run services:
+4. Seed product data (optional):
+```bash
+# Run the seed script to create sample product data
+node seed-product.ts
+```
+
+5. Run services:
 ```bash
 # Start respective services in different terminals
 cd payment-service && npm run start

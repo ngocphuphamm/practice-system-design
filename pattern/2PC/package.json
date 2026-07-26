@@ -13,7 +13,8 @@
     "start:inventory": "nest start inventory-service",
     "start:order": "nest start order-service",
     "start:dev": "concurrently \"npm run start:payment\" \"npm run start:inventory\" \"npm run start:order\"",
-    "test": "node test-2pc.ts"
+    "test": "node test-2pc.ts",
+    "seed": "node seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -27,15 +28,18 @@
     "mysql2": "^3.0.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
-    "typeorm": "^0.3.0"
+    "ts-node": "^10.9.2",
+    "typeorm": "^0.3.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",
     "@types/express": "^4.17.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
   },
   "keywords": [
     "nestjs",

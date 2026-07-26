@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
@@ -7,109 +7,196 @@ import { CommitDto } from '../shared/dtos/commit.dto';
 import { RollbackDto } from '../shared/dtos/rollback.dto';
 import { TwoPhaseResponse } from '../shared/dtos/two-phase.response';
 import { TransactionStatus } from '../shared/enums/transaction-status.enum';
+import { StructuredLogger } from '../shared/logger/logger.service';
 
 @Injectable()
 export class InventoryService {
+  private readonly logger: StructuredLogger;
+
   constructor(
     @InjectRepository(InventoryTransaction)
     private inventoryTransactionRepository: Repository<InventoryTransaction>,
-  ) {}
+  ) {
+    this.logger = new StructuredLogger('inventory-service');
+  }
 
   async prepare(prepareDto: PrepareDto): Promise<TwoPhaseResponse> {
     const { gTid, entityId: productId, amountOrQty: quantity } = prepareDto;
-    
+
+    // Set context for logger
+    this.logger.setContext(undefined, undefined, gTid, productId);
+
+    this.logger.log('Inventory prepare phase initiated', `Inventory Prepare ${gTid}`);
+
     try {
-      // Create a new inventory transaction record with PREPARED status
-      const inventoryTransaction = this.inventoryTransactionRepository.create({
-        gTid,
-        productId,
-        quantity,
-        status: TransactionStatus.PREPARED,
-      });
-      
-      await this.inventoryTransactionRepository.save(inventoryTransaction);
-      
-      // In a realistic scenario, we would:
-      // 1. Start DB transaction: await this.inventoryTransactionRepository.manager.transaction(...)
-      // 2. Query product stock with pessimistic lock: SELECT ... FOR UPDATE
-      // 3. Check if stock >= quantity
-      // 4. Create inventory_transaction WITH status `PREPARED`
-      // 5. Hold inventory stock
-      // 6. Commit transaction
-      
-      return { success: true };
+      // Start DB transaction
+      const queryRunner = this.inventoryTransactionRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Query product stock with pessimistic lock
+        const productStock = await queryRunner.manager.query(
+          `SELECT stock FROM products WHERE id = ? FOR UPDATE`,
+          [productId]
+        );
+
+        if (!productStock || productStock[0].stock < quantity) {
+          await queryRunner.rollbackTransaction();
+          this.logger.warn('Insufficient stock for reservation', `Inventory Prepare ${gTid}`);
+          return {
+            success: false,
+            message: 'Insufficient stock for reservation'
+          };
+        }
+
+        // Create inventory transaction record with PREPARED status
+        const inventoryTransaction = this.inventoryTransactionRepository.create({
+          gTid,
+          productId,
+          quantity,
+          status: TransactionStatus.PREPARED,
+        });
+
+        await queryRunner.manager.save(inventoryTransaction);
+
+        // Hold inventory stock by updating the product stock
+        await queryRunner.manager.query(
+          `UPDATE products SET stock = stock - ? WHERE id = ?`,
+          [quantity, productId]
+        );
+
+        // Commit transaction
+        await queryRunner.commitTransaction();
+        
+        this.logger.log('Inventory prepare completed successfully', `Inventory Prepare ${gTid}`);
+        return { success: true };
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(`Inventory preparation failed: ${error.message}`, error.stack, `Inventory Prepare ${gTid}`);
+        throw error;
+      }
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Inventory preparation failed: ${error.message}` 
+      this.logger.error(`Inventory preparation failed: ${error.message}`, error.stack, `Inventory Prepare ${gTid}`);
+      return {
+        success: false,
+        message: `Inventory preparation failed: ${error.message}`
       };
     }
   }
 
   async commit(commitDto: CommitDto): Promise<TwoPhaseResponse> {
     const { gTid } = commitDto;
-    
+
+    // Set context for logger
+    this.logger.setContext(undefined, undefined, gTid);
+
+    this.logger.log('Inventory commit phase initiated', `Inventory Commit ${gTid}`);
+
     try {
-      // Find the prepared inventory transaction
-      const inventoryTransaction = await this.inventoryTransactionRepository.findOne({
-        where: { gTid, status: TransactionStatus.PREPARED }
-      });
-      
-      if (!inventoryTransaction) {
-        return { 
-          success: false, 
-          message: 'Inventory transaction not found in prepared state' 
-        };
+      // Start DB transaction
+      const queryRunner = this.inventoryTransactionRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Find the prepared inventory transaction
+        const inventoryTransaction = await queryRunner.manager.findOne(InventoryTransaction, {
+          where: { gTid, status: TransactionStatus.PREPARED }
+        });
+
+        if (!inventoryTransaction) {
+          await queryRunner.rollbackTransaction();
+          this.logger.warn('Inventory transaction not found in prepared state', `Inventory Commit ${gTid}`);
+          return {
+            success: false,
+            message: 'Inventory transaction not found in prepared state'
+          };
+        }
+
+        // Update status to COMMITTED and decrease stock
+        inventoryTransaction.status = TransactionStatus.COMMITTED;
+        await queryRunner.manager.save(inventoryTransaction);
+
+        // Permanently decrement product stock
+        await queryRunner.manager.query(
+          `UPDATE products SET stock = stock - ? WHERE id = ?`,
+          [inventoryTransaction.quantity, inventoryTransaction.productId]
+        );
+
+        // Commit transaction
+        await queryRunner.commitTransaction();
+        
+        this.logger.log('Inventory commit completed successfully', `Inventory Commit ${gTid}`);
+        return { success: true };
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(`Inventory commit failed: ${error.message}`, error.stack, `Inventory Commit ${gTid}`);
+        throw error;
       }
-      
-      // Update status to COMMITTED and decrease stock
-      inventoryTransaction.status = TransactionStatus.COMMITTED;
-      await this.inventoryTransactionRepository.save(inventoryTransaction);
-      
-      // In a realistic scenario, we would:
-      // 1. Update inventory_transaction status to COMMITTED
-      // 2. Permanently decrement product stock
-      // 3. Log the successful transaction
-      
-      return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Inventory commit failed: ${error.message}` 
+      this.logger.error(`Inventory commit failed: ${error.message}`, error.stack, `Inventory Commit ${gTid}`);
+      return {
+        success: false,
+        message: `Inventory commit failed: ${error.message}`
       };
     }
   }
 
   async rollback(rollbackDto: RollbackDto): Promise<TwoPhaseResponse> {
     const { gTid } = rollbackDto;
-    
+
+    // Set context for logger
+    this.logger.setContext(undefined, undefined, gTid);
+
+    this.logger.log('Inventory rollback phase initiated', `Inventory Rollback ${gTid}`);
+
     try {
-      // Find the prepared inventory transaction
-      const inventoryTransaction = await this.inventoryTransactionRepository.findOne({
-        where: { gTid, status: TransactionStatus.PREPARED }
-      });
-      
-      if (!inventoryTransaction) {
-        return { 
-          success: false, 
-          message: 'Inventory transaction not found in prepared state for rollback' 
-        };
+      // Start DB transaction
+      const queryRunner = this.inventoryTransactionRepository.manager.connection.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Find the prepared inventory transaction
+        const inventoryTransaction = await queryRunner.manager.findOne(InventoryTransaction, {
+          where: { gTid, status: TransactionStatus.PREPARED }
+        });
+
+        if (!inventoryTransaction) {
+          await queryRunner.rollbackTransaction();
+          this.logger.warn('Inventory transaction not found in prepared state for rollback', `Inventory Rollback ${gTid}`);
+          return {
+            success: false,
+            message: 'Inventory transaction not found in prepared state for rollback'
+          };
+        }
+
+        // Mark as ABORTED and release reserved stock
+        inventoryTransaction.status = TransactionStatus.ABORTED;
+        await queryRunner.manager.save(inventoryTransaction);
+
+        // Release reserved stock
+        await queryRunner.manager.query(
+          `UPDATE products SET stock = stock + ? WHERE id = ?`,
+          [inventoryTransaction.quantity, inventoryTransaction.productId]
+        );
+
+        // Commit transaction
+        await queryRunner.commitTransaction();
+        
+        this.logger.log('Inventory rollback completed successfully', `Inventory Rollback ${gTid}`);
+        return { success: true };
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(`Inventory rollback failed: ${error.message}`, error.stack, `Inventory Rollback ${gTid}`);
+        throw error;
       }
-      
-      // Mark as ABORTED and release reserved stock
-      inventoryTransaction.status = TransactionStatus.ABORTED;
-      await this.inventoryTransactionRepository.save(inventoryTransaction);
-      
-      // In a realistic scenario, we would:
-      // 1. Update inventory_transaction status to ABORTED
-      // 2. Release reserved stock
-      // 3. Log the rollback
-      
-      return { success: true };
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Inventory rollback failed: ${error.message}` 
+      this.logger.error(`Inventory rollback failed: ${error.message}`, error.stack, `Inventory Rollback ${gTid}`);
+      return {
+        success: false,
+        message: `Inventory rollback failed: ${error.message}`
       };
     }
   }

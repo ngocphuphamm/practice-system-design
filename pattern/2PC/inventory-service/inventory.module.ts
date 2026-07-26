@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
+import { Product } from './entities/product.entity';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { InventoryTransaction } from './entities/inventory-transaction.entity';
       autoLoadEntities: true, 
       synchronize: true,      // Lưu ý: Tắt đi (false) khi chạy production
     }),
-    TypeOrmModule.forFeature([InventoryTransaction]),
+    TypeOrmModule.forFeature([InventoryTransaction, Product]),
   ],
   controllers: [InventoryController],
   providers: [InventoryService],

@@ -4,7 +4,9 @@
       "Bash(rm *)",
       "Bash(npm run *)",
       "Bash(npm install)",
-      "Bash(npx *)"
+      "Bash(npx *)",
+      "Agent(Explore)",
+      "Bash(npm *)"
     ]
   },
   "$version": 4

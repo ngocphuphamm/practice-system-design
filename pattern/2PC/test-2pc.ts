@@ -1,4 +1,5 @@
 // Test script to demonstrate 2PC workflow
+// NOTE: Make sure to seed product data first using 'node seed-product.ts' before running this test
 import axios from 'axios';
 
 // Mock request to simulate placing an order using our 2PC system

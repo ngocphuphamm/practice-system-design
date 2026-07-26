@@ -1,0 +1,49 @@
+@startuml
+actor "Client" as Client
+participant "Order Service\n(Coordinator)" as OrderService
+participant "Payment Service\n(Participant)" as PaymentService
+participant "Inventory Service\n(Participant)" as InventoryService
+
+title 2PC Distributed Transaction Sequence
+
+Client -> OrderService : 1. Place Order Request
+OrderService -> OrderService : 2. Generate Global TID
+OrderService -> OrderService : 3. Create PENDING Order
+
+Opt Prepare Phase
+    OrderService -> PaymentService : 4. Prepare Payment
+    PaymentService -> PaymentService : 5. Lock User Balance
+    PaymentService --> OrderService : 6. Payment Prepared
+    
+    OrderService -> InventoryService : 7. Prepare Inventory
+    InventoryService -> InventoryService : 8. Lock Product Stock
+    InventoryService --> OrderService : 9. Inventory Prepared
+End Opt
+
+Opt Decision Phase
+    alt All Success
+        OrderService -> PaymentService : 10. Commit Payment
+        PaymentService -> PaymentService : 11. Release Balance
+        PaymentService --> OrderService : 12. Payment Committed
+        
+        OrderService -> InventoryService : 13. Commit Inventory
+        InventoryService -> InventoryService : 14. Decrease Stock
+        InventoryService --> OrderService : 15. Inventory Committed
+        
+        OrderService -> OrderService : 16. Update Order to PAID
+        OrderService --> Client : 17. Success Response
+    else Any Fail
+        OrderService -> PaymentService : 18. Rollback Payment
+        PaymentService -> PaymentService : 19. Release Balance
+        PaymentService --> OrderService : 20. Payment Rolled Back
+        
+        OrderService -> InventoryService : 21. Rollback Inventory
+        InventoryService -> InventoryService : 22. Release Stock
+        InventoryService --> OrderService : 23. Inventory Rolled Back
+        
+        OrderService -> OrderService : 24. Update Order to FAILED
+        OrderService --> Client : 25. Failure Response
+    end
+end
+
+@enduml

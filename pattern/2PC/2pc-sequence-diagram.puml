@@ -1,0 +1,49 @@
+@startuml
+actor "Client" as Client
+participant "Order Service\n(Coordinator)" as OrderService
+participant "Payment Service\n(Participant)" as PaymentService
+participant "Inventory Service\n(Participant)" as InventoryService
+
+title Two-Phase Commit (2PC) Distributed Transaction Flow
+
+Client -> OrderService : POST /orders\n(userId, productId, amount, quantity)
+OrderService -> OrderService : Generate G-TID
+OrderService -> OrderService : Create Order (PENDING)
+
+alt Prepare Phase
+    OrderService -> PaymentService : POST /payment/prepare\n(gTid, userId, amount)
+    PaymentService -> PaymentService : Lock user balance\nCreate PREPARED transaction
+    PaymentService --> OrderService : Response (success/failed)
+    
+    OrderService -> InventoryService : POST /inventory/prepare\n(gTid, productId, quantity)
+    InventoryService -> InventoryService : Lock product stock\nCreate PREPARED transaction
+    InventoryService --> OrderService : Response (success/failed)
+end
+
+alt Decision Phase
+    alt All participants successful
+        OrderService -> PaymentService : POST /payment/commit\n(gTid)
+        PaymentService -> PaymentService : Update transaction to COMMITTED\nRelease held balance
+        PaymentService --> OrderService : Response (success/failed)
+        
+        OrderService -> InventoryService : POST /inventory/commit\n(gTid)
+        InventoryService -> InventoryService : Update transaction to COMMITTED\nDecrease stock
+        InventoryService --> OrderService : Response (success/failed)
+        
+        OrderService -> OrderService : Update Order (PAID)
+        OrderService --> Client : Success Response
+    else Any participant failed
+        OrderService -> PaymentService : POST /payment/rollback\n(gTid)
+        PaymentService -> PaymentService : Update transaction to ABORTED\nRelease held balance
+        PaymentService --> OrderService : Response (success/failed)
+        
+        OrderService -> InventoryService : POST /inventory/rollback\n(gTid)
+        InventoryService -> InventoryService : Update transaction to ABORTED\nRelease reserved stock
+        InventoryService --> OrderService : Response (success/failed)
+        
+        OrderService -> OrderService : Update Order (FAILED)
+        OrderService --> Client : Failure Response
+    end
+end
+
+@enduml

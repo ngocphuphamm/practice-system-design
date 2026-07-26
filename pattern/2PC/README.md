@@ -17,9 +17,10 @@ This project implements a Two-Phase Commit (2PC) distributed transaction pattern
 - Manages payment ledger with transaction status tracking
 
 ### 3. Inventory Service (Participant)
-- Manages stock checking and inventory locking
+- Manages stock checking and inventory locking with pessimistic locking
 - Implements Prepare, Commit, and Rollback operations
 - Tracks inventory transactions with status
+- Uses database transactions for atomic operations
 
 ## Technologies Used
 
@@ -71,6 +72,14 @@ This project implements a Two-Phase Commit (2PC) distributed transaction pattern
 - Idempotent operations to allow retries
 - Graceful fallbacks in case of participant failures
 
+#### Inventory Service Implementation Details
+The inventory service implements a complete 2PC pattern with the following enhancements:
+- Database transactions using TypeORM QueryRunner for atomic operations
+- Pessimistic locking using SELECT ... FOR UPDATE to prevent race conditions
+- Stock availability checking before reservation
+- Inventory reservation and release mechanisms
+- Proper transaction rollback on failure
+
 ## Running the System
 
 ### Prerequisites
@@ -87,7 +96,7 @@ npm install
 
 2. Configure database connections in each service:
    - Update database configuration in `payment-service/ormconfig.ts`
-   - Update database configuration in `inventory-service/ormconfig.ts`  
+   - Update database configuration in `inventory-service/ormconfig.ts`
    - Update database configuration in `order-service/ormconfig.ts`
 
 3. Create databases in MySQL:
@@ -97,7 +106,16 @@ CREATE DATABASE db_inventory;
 CREATE DATABASE db_order;
 ```
 
-4. Run services:
+4. Seed product data (optional):
+```bash
+# Install TypeScript support for running the script
+npm install ts-node typescript @types/node
+
+# Run the seed script to create sample product data
+npx ts-node seed-product.ts
+```
+
+5. Run services:
 ```bash
 # Start respective services in different terminals
 cd payment-service && npm run start
