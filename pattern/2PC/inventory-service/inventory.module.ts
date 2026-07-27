@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { InventoryService } from './inventory.service';
+import { Inventory2PCService } from './inventory-2pc.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryTransaction } from './entities/inventory-transaction.entity';
 import { Product } from './entities/product.entity';
@@ -14,13 +14,13 @@ import { Product } from './entities/product.entity';
       username: 'root',       // Thường mặc định của MySQL là root
       password: '1',   // Mật khẩu MySQL của bạn
       database: 'inventory_db',    // Tên cơ sở dữ liệu MySQL của bạn
-      autoLoadEntities: true, 
+      autoLoadEntities: true,
       synchronize: true,      // Lưu ý: Tắt đi (false) khi chạy production
     }),
     TypeOrmModule.forFeature([InventoryTransaction, Product]),
   ],
   controllers: [InventoryController],
-  providers: [InventoryService],
-  exports: [InventoryService]
+  providers: [Inventory2PCService],
+  exports: [Inventory2PCService]
 })
 export class InventoryModule {}

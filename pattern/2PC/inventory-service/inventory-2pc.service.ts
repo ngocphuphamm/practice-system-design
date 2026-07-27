@@ -10,14 +10,14 @@ import { TransactionStatus } from '../shared/enums/transaction-status.enum';
 import { StructuredLogger } from '../shared/logger/logger.service';
 
 @Injectable()
-export class InventoryService {
+export class Inventory2PCService {
   private readonly logger: StructuredLogger;
 
   constructor(
     @InjectRepository(InventoryTransaction)
     private inventoryTransactionRepository: Repository<InventoryTransaction>,
   ) {
-    this.logger = new StructuredLogger('inventory-service');
+    this.logger = new StructuredLogger('inventory-2pc-service');
   }
 
   async prepare(prepareDto: PrepareDto): Promise<TwoPhaseResponse> {
