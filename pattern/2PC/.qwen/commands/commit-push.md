@@ -25,3 +25,8 @@ Analyze the staged changes, combine them with any user-provided hints, generate 
 6. **Wait for user confirmation.**
    - If approved, execute: `git commit -m "<generated_message>"`. Do not include any AI co-authoring metadata strings.
    - If the user provides feedback, adjust the message accordingly before executing.
+   - After the commit completes successfully, explicitly ask the user:
+     *"Do you want to push these changes to the remote repository?"*
+   - Wait for user confirmation.
+   - If approved, execute: `git push`.
+   - If rejected or feedback is provided, stop or follow the user's instructions.
